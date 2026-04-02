@@ -140,10 +140,35 @@ brew_install() {
     fi
 }
 
+# -- 安装 yq（直接下载二进制，避免 brew 编译卡住）--
+install_yq() {
+    if command -v yq &>/dev/null; then
+        log_skip "yq 已安装，跳过"
+        return 0
+    fi
+
+    log_info "正在安装 yq..."
+    local arch
+    if [[ "$(uname -m)" == "arm64" ]]; then
+        arch="arm64"
+    else
+        arch="amd64"
+    fi
+
+    local yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_${arch}"
+    local yq_bin="/usr/local/bin/yq"
+
+    if curl -fsSL "${yq_url}" -o "${yq_bin}" && chmod +x "${yq_bin}"; then
+        log_success "yq 安装完成"
+    else
+        log_fail "yq 安装失败"
+    fi
+}
+
 # -- 安装基础工具 --
 install_base_tools() {
     brew_install "git" "Git" "git"
-    brew_install "yq" "yq" "yq"
+    install_yq
 }
 
 # -- 配置 Git 用户信息 --
