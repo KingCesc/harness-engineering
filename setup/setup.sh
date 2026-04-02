@@ -1,9 +1,12 @@
-#!/bin/zsh
+#!/bin/bash
 set -u
 
 # =============================================================================
 # 一键开发环境配置脚本
-# 使用方式: zsh setup/setup.sh 或 ./setup/setup.sh
+# 兼容 bash/zsh，可用以下任一方式运行:
+#   bash setup/setup.sh
+#   zsh setup/setup.sh
+#   ./setup/setup.sh
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
@@ -477,7 +480,11 @@ clone_repos() {
     local input=""
     printf "请输入序号（多选用空格分隔）: "
     read -r input || true
-    local selections=(${=input})
+    # 按空格拆分输入（兼容 bash/zsh）
+    local selections=()
+    for s in ${input}; do
+        selections+=("${s}")
+    done
 
     # Determine which business lines to clone
     local selected_indices=()
