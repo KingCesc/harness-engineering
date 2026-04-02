@@ -1,0 +1,35 @@
+# GitLab 基础信息
+gitlab:
+  host: gitlab.yourcompany.com
+
+# Tailscale login server URL
+tailscale:
+  login_server: https://your-tailscale-server.com
+
+# 本地工作目录根路径
+workspace: ~/workspace
+
+# 业务线定义
+businesses:
+  - name: 订单系统
+    key: order
+    repos:
+      - group: backend
+        name: order-service
+        ssh: git@gitlab.yourcompany.com:backend/order-service.git
+      - group: backend
+        name: payment-service
+        ssh: git@gitlab.yourcompany.com:backend/payment-service.git
+      - group: frontend
+        name: order-web
+        ssh: git@gitlab.yourcompany.com:frontend/order-web.git
+
+  - name: 用户中心
+    key: user
+    repos:
+      - group: backend
+        name: user-service
+        ssh: git@gitlab.yourcompany.com:backend/user-service.git
+      - group: frontend
+        name: user-web
+        ssh: git@gitlab.yourcompany.com:frontend/user-web.git
