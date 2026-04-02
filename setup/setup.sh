@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 
 # =============================================================================
 # 一键开发环境配置脚本
@@ -211,8 +211,11 @@ install_dev_tools() {
         log_info "正在安装 OpenJDK 8..."
         if brew install openjdk@8; then
             # Create symlink so macOS java_home can find it
-            sudo ln -sfn "$(brew --prefix openjdk@8)/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-            log_success "OpenJDK 8 安装完成"
+            if sudo ln -sfn "$(brew --prefix openjdk@8)/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk-8.jdk; then
+                log_success "OpenJDK 8 安装完成"
+            else
+                log_success "OpenJDK 8 安装完成（symlink 创建失败，可能需要手动执行 sudo 命令）"
+            fi
         else
             log_fail "OpenJDK 8 安装失败"
         fi
@@ -247,8 +250,10 @@ configure_tailscale() {
         return 0
     fi
 
-    # Check if already connected
-    if tailscale status &>/dev/null; then
+    # Check if already logged in (look for actual peer/IP info in status output)
+    local ts_status
+    ts_status="$(tailscale status 2>&1 || true)"
+    if echo "${ts_status}" | grep -q "^100\." ; then
         log_skip "Tailscale 已连接，跳过"
         return 0
     fi
@@ -297,15 +302,18 @@ configure_env_vars() {
         return 0
     fi
 
-    cat >> "${zshrc}" << 'EOF'
+    local brew_prefix
+    brew_prefix="$(brew --prefix)"
+
+    cat >> "${zshrc}" << EOF
 
 # == harness-engineering dev env ==
 # OpenJDK 8
-export JAVA_HOME=$(/usr/libexec/java_home -v 1.8 2>/dev/null)
-export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME=\$(/usr/libexec/java_home -v 1.8 2>/dev/null)
+export PATH="\$JAVA_HOME/bin:\$PATH"
 
 # Node.js 20
-export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
+export PATH="${brew_prefix}/opt/node@20/bin:\$PATH"
 # == end harness-engineering dev env ==
 EOF
 
@@ -380,11 +388,12 @@ clone_repos() {
     echo "  $((biz_count + 1))) 全部"
     echo ""
 
-    read -rp "请输入序号（多选用空格分隔）: " -a selections
+    local selections=()
+    read -rp "请输入序号（多选用空格分隔）: " -a selections || true
 
     # Determine which business lines to clone
     local selected_indices=()
-    for sel in "${selections[@]}"; do
+    for sel in "${selections[@]+"${selections[@]}"}"; do
         if [[ "${sel}" -eq $((biz_count + 1)) ]]; then
             # "全部" selected
             selected_indices=()
