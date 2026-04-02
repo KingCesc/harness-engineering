@@ -1,34 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
-                              https://maven.apache.org/xsd/settings-1.2.0.xsd">
-
-  <mirrors>
-    <mirror>
-      <id>nexus</id>
-      <mirrorOf>*</mirrorOf>
-      <name>Company Nexus Mirror</name>
-      <url>https://nexus.yourcompany.com/repository/maven-public/</url>
-    </mirror>
-  </mirrors>
-
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+  <servers>
+    <server>
+      <id>shulex-repository-public</id>
+      <username>dev</username>
+      <password>shulex_dev_wertsdfzc579</password>
+    </server>
+    <server>
+      <id>shulex-repository-releases</id>
+      <username>dev</username>
+      <password>shulex_dev_wertsdfzc579</password>
+    </server>
+    <server>
+      <id>shulex-repository-snapshot</id>
+      <username>dev</username>
+      <password>shulex_dev_wertsdfzc579</password>
+    </server>
+  </servers>
   <profiles>
     <profile>
-      <id>nexus</id>
+      <id>shulex-repository-public</id>
       <repositories>
         <repository>
-          <id>central</id>
-          <url>https://nexus.yourcompany.com/repository/maven-public/</url>
-          <releases><enabled>true</enabled></releases>
-          <snapshots><enabled>true</enabled></snapshots>
+          <id>shulex-repository-public</id>
+          <name>shulex</name>
+          <url>https://nexus.shulex-tech.com/repository/maven-public/</url>
+          <releases>
+            <enabled>true</enabled>
+            <updatePolicy>false</updatePolicy>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+            <updatePolicy>always</updatePolicy>
+          </snapshots>
         </repository>
       </repositories>
     </profile>
   </profiles>
-
   <activeProfiles>
-    <activeProfile>nexus</activeProfile>
+    <activeProfile>shulex-repository-public</activeProfile>
   </activeProfiles>
-
 </settings>
