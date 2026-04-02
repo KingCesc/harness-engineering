@@ -246,8 +246,12 @@ install_dev_tools() {
         brew_install "node@20" "Node.js 20" ""
     fi
 
-    # Tailscale
-    brew_install_cask "tailscale" "Tailscale"
+    # Tailscale (可能通过 brew、App Store 或 .pkg 安装)
+    if command -v tailscale &>/dev/null || [[ -d "/Applications/Tailscale.app" ]]; then
+        log_skip "Tailscale 已安装，跳过"
+    else
+        brew_install_cask "tailscale" "Tailscale"
+    fi
 }
 
 # -- 配置 Tailscale --
@@ -306,33 +310,57 @@ configure_maven() {
 # -- 配置环境变量 --
 configure_env_vars() {
     local zshrc="${HOME}/.zshrc"
-    local marker="# == harness-engineering dev env =="
+    local needs_java=false
+    local needs_node=false
+    local changed=false
 
     # Create .zshrc if it doesn't exist
     touch "${zshrc}"
 
-    # Check if already configured
-    if grep -q "${marker}" "${zshrc}"; then
-        log_skip "环境变量已配置，跳过"
+    # 检查 Java 是否已经可用
+    if ! java -version &>/dev/null; then
+        needs_java=true
+    fi
+
+    # 检查 Node 是否已经可用
+    if ! command -v node &>/dev/null; then
+        needs_node=true
+    fi
+
+    if ! ${needs_java} && ! ${needs_node}; then
+        log_skip "环境变量无需配置（java/node 已可用），跳过"
         return 0
     fi
 
     local brew_prefix
     brew_prefix="$(brew --prefix)"
+    local marker_java="# harness: JAVA_HOME"
+    local marker_node="# harness: node PATH"
 
-    cat >> "${zshrc}" << EOF
+    if ${needs_java} && ! grep -q "${marker_java}" "${zshrc}"; then
+        cat >> "${zshrc}" << EOF
 
-# == harness-engineering dev env ==
-# OpenJDK 8
+${marker_java}
 export JAVA_HOME=\$(/usr/libexec/java_home -v 1.8 2>/dev/null)
 export PATH="\$JAVA_HOME/bin:\$PATH"
-
-# Node.js 20
-export PATH="${brew_prefix}/opt/node@20/bin:\$PATH"
-# == end harness-engineering dev env ==
 EOF
+        log_success "JAVA_HOME 已写入 ~/.zshrc"
+        changed=true
+    fi
 
-    log_success "环境变量已写入 ~/.zshrc"
+    if ${needs_node} && ! grep -q "${marker_node}" "${zshrc}"; then
+        cat >> "${zshrc}" << EOF
+
+${marker_node}
+export PATH="${brew_prefix}/opt/node@20/bin:\$PATH"
+EOF
+        log_success "Node.js PATH 已写入 ~/.zshrc"
+        changed=true
+    fi
+
+    if ! ${changed}; then
+        log_skip "环境变量已配置，跳过"
+    fi
 }
 
 # -- 配置 SSH Key --
