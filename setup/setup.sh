@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 set -uo pipefail
 
 # =============================================================================
@@ -6,7 +6,7 @@ set -uo pipefail
 # 使用方式: bash setup/setup.sh
 # =============================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/biz-repos.yaml"
 MAVEN_TEMPLATE="${SCRIPT_DIR}/maven-settings.xml"
 
@@ -157,9 +157,9 @@ configure_git() {
 
     if [[ -n "${current_name}" ]]; then
         echo -e "  当前 Git 用户名: ${GREEN}${current_name}${NC}"
-        read -rp "  输入新用户名（按回车保留当前值）: " new_name
+        read -r "new_name?  输入新用户名（按回车保留当前值）: "
     else
-        read -rp "  输入 Git 用户名: " new_name
+        read -r "new_name?  输入 Git 用户名: "
     fi
 
     if [[ -n "${new_name}" ]]; then
@@ -168,9 +168,9 @@ configure_git() {
 
     if [[ -n "${current_email}" ]]; then
         echo -e "  当前 Git 邮箱: ${GREEN}${current_email}${NC}"
-        read -rp "  输入新邮箱（按回车保留当前值）: " new_email
+        read -r "new_email?  输入新邮箱（按回车保留当前值）: "
     else
-        read -rp "  输入 Git 邮箱: " new_email
+        read -r "new_email?  输入 Git 邮箱: "
     fi
 
     if [[ -n "${new_email}" ]]; then
@@ -357,7 +357,7 @@ configure_ssh_key() {
     fi
 
     echo ""
-    read -rp "添加完成后按回车继续..."
+    read -r "?添加完成后按回车继续..."
 }
 
 # -- Clone 业务线 Repo --
@@ -388,12 +388,13 @@ clone_repos() {
     echo "  $((biz_count + 1))) 全部"
     echo ""
 
-    local selections=()
-    read -rp "请输入序号（多选用空格分隔）: " -a selections || true
+    local input=""
+    read -r "input?请输入序号（多选用空格分隔）: " || true
+    local selections=(${=input})
 
     # Determine which business lines to clone
     local selected_indices=()
-    for sel in "${selections[@]+"${selections[@]}"}"; do
+    for sel in "${selections[@]}"; do
         if [[ "${sel}" -eq $((biz_count + 1)) ]]; then
             # "全部" selected
             selected_indices=()
