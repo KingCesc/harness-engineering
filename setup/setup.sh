@@ -368,27 +368,26 @@ configure_ssh_key() {
     local ssh_key="${HOME}/.ssh/id_ed25519"
 
     if [[ -f "${ssh_key}" ]]; then
-        log_skip "SSH Key 已存在，跳过"
-        printf "  公钥: %s\n" "$(cat "${ssh_key}.pub")"
-        return 0
-    fi
-
-    log_info "正在生成 SSH Key..."
-    mkdir -p "${HOME}/.ssh"
-    chmod 700 "${HOME}/.ssh"
-
-    local email
-    email="$(git config --global user.email 2>/dev/null || echo "")"
-
-    if [[ -n "${email}" ]]; then
-        ssh-keygen -t ed25519 -C "${email}" -f "${ssh_key}" -N ""
+        log_skip "SSH Key 已存在，跳过生成"
     else
-        ssh-keygen -t ed25519 -f "${ssh_key}" -N ""
+        log_info "正在生成 SSH Key..."
+        mkdir -p "${HOME}/.ssh"
+        chmod 700 "${HOME}/.ssh"
+
+        local email
+        email="$(git config --global user.email 2>/dev/null || echo "")"
+
+        if [[ -n "${email}" ]]; then
+            ssh-keygen -t ed25519 -C "${email}" -f "${ssh_key}" -N ""
+        else
+            ssh-keygen -t ed25519 -f "${ssh_key}" -N ""
+        fi
+        log_success "SSH Key 已生成"
     fi
 
-    log_success "SSH Key 已生成"
+    # 无论新生成还是已有，都展示公钥
     echo ""
-    printf "${BLUE}请将以下公钥添加到 GitLab:${NC}\n"
+    printf "${BLUE}你的 SSH 公钥:${NC}\n"
     echo ""
     cat "${ssh_key}.pub"
     echo ""
@@ -398,13 +397,19 @@ configure_ssh_key() {
     if [[ -n "${gitlab_host}" && "${gitlab_host}" != "null" ]]; then
         printf "GitLab SSH Key 设置页面: ${BLUE}https://${gitlab_host}/-/user_settings/ssh_keys${NC}\n"
     fi
-
-    echo ""
-    read -r "?添加完成后按回车继续..."
 }
 
 # -- Clone 业务线 Repo --
 clone_repos() {
+    echo ""
+    printf "${YELLOW}请确认你已将上面的 SSH 公钥添加到 GitLab，否则 clone 会失败。${NC}\n"
+    local confirm=""
+    read -r "confirm?已添加 SSH Key 到 GitLab？(y/n): "
+    if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
+        log_info "跳过代码克隆，请添加 SSH Key 后重新运行脚本"
+        return 0
+    fi
+
     local workspace
     workspace="$(yq eval '.workspace' "${CONFIG_FILE}")"
     # Expand ~ to $HOME
