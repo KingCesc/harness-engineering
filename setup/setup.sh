@@ -401,14 +401,34 @@ configure_ssh_key() {
 
 # -- Clone 业务线 Repo --
 clone_repos() {
-    echo ""
-    printf "${YELLOW}请确认你已将上面的 SSH 公钥添加到 GitLab，否则 clone 会失败。${NC}\n"
-    local confirm=""
-    read -r "confirm?已添加 SSH Key 到 GitLab？(y/n): "
-    if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
-        log_info "跳过代码克隆，请添加 SSH Key 后重新运行脚本"
-        return 0
-    fi
+    local gitlab_host
+    gitlab_host="$(yq eval '.gitlab.host' "${CONFIG_FILE}")"
+
+    # 循环验证 SSH 连通性，直到成功或用户放弃
+    while true; do
+        echo ""
+        printf "${YELLOW}请确认你已将 SSH 公钥添加到 GitLab，否则 clone 会失败。${NC}\n"
+        local confirm=""
+        read -r "confirm?已添加 SSH Key 到 GitLab？(y/n): "
+        if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
+            log_info "跳过代码克隆，请添加 SSH Key 后重新运行脚本"
+            return 0
+        fi
+
+        log_info "正在验证 SSH 连接到 ${gitlab_host}..."
+        if ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "git@${gitlab_host}" 2>&1 | grep -qi "welcome"; then
+            log_success "SSH 验证通过"
+            break
+        else
+            printf "${RED}[✗] SSH 验证失败，请检查公钥是否已正确添加到 GitLab${NC}\n"
+            local retry=""
+            read -r "retry?重试验证？(y/n): "
+            if [[ "${retry}" != "y" && "${retry}" != "Y" ]]; then
+                log_info "跳过代码克隆，请添加 SSH Key 后重新运行脚本"
+                return 0
+            fi
+        fi
+    done
 
     local workspace
     workspace="$(yq eval '.workspace' "${CONFIG_FILE}")"
