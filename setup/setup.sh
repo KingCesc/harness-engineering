@@ -184,26 +184,29 @@ configure_git() {
 
     log_info "配置 Git 用户信息..."
 
-    if [[ -z "${current_name}" ]]; then
+    while [[ -z "${current_name}" ]]; do
         local new_name=""
-        read -r "new_name?  输入 Git 用户名: "
+        read -r "new_name?  输入 Git 用户名（必填）: "
         if [[ -n "${new_name}" ]]; then
             git config --global user.name "${new_name}"
+            current_name="${new_name}"
+        else
+            printf "${RED}  Git 用户名不能为空，请重新输入${NC}\n"
         fi
-    fi
+    done
 
-    if [[ -z "${current_email}" ]]; then
+    while [[ -z "${current_email}" ]]; do
         local new_email=""
-        read -r "new_email?  输入 Git 邮箱: "
+        read -r "new_email?  输入 Git 邮箱（必填）: "
         if [[ -n "${new_email}" ]]; then
             git config --global user.email "${new_email}"
+            current_email="${new_email}"
+        else
+            printf "${RED}  Git 邮箱不能为空，请重新输入${NC}\n"
         fi
-    fi
+    done
 
-    local final_name final_email
-    final_name="$(git config --global user.name 2>/dev/null || echo "")"
-    final_email="$(git config --global user.email 2>/dev/null || echo "")"
-    log_success "Git 用户配置完成 (${final_name} <${final_email}>)"
+    log_success "Git 用户配置完成 (${current_name} <${current_email}>)"
 }
 
 # -- 通用 brew cask install 函数 --
