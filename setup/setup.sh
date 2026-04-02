@@ -396,14 +396,15 @@ configure_ssh_key() {
     local gitlab_host
     gitlab_host="$(yq eval '.gitlab.host' "${CONFIG_FILE}")"
     if [[ -n "${gitlab_host}" && "${gitlab_host}" != "null" ]]; then
-        printf "GitLab SSH Key 设置页面: ${BLUE}https://${gitlab_host}/-/user_settings/ssh_keys${NC}\n"
+        printf "GitLab SSH Key 设置页面: ${BLUE}https://${gitlab_host}/-/profile/keys${NC}\n"
     fi
 }
 
 # -- Clone 业务线 Repo --
 clone_repos() {
-    local gitlab_host
+    local gitlab_host ssh_host
     gitlab_host="$(yq eval '.gitlab.host' "${CONFIG_FILE}")"
+    ssh_host="$(yq eval '.gitlab.ssh_host // .gitlab.host' "${CONFIG_FILE}")"
 
     # 循环验证 SSH 连通性，直到成功或用户放弃
     while true; do
@@ -416,8 +417,8 @@ clone_repos() {
             return 0
         fi
 
-        log_info "正在验证 SSH 连接到 ${gitlab_host}..."
-        if ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "git@${gitlab_host}" 2>&1 | grep -qi "welcome"; then
+        log_info "正在验证 SSH 连接到 ${ssh_host}..."
+        if ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "git@${ssh_host}" 2>&1 | grep -qi "welcome"; then
             log_success "SSH 验证通过"
             break
         else

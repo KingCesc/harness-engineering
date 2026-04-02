@@ -1,35 +1,33 @@
 # GitLab 基础信息
 gitlab:
-  host: gitlab.yourcompany.com
+  host: git-web.shulex-tech.com
+  ssh_host: git-ssh.shulex-tech.com
 
 # Tailscale login server URL
 tailscale:
-  login_server: https://your-tailscale-server.com
+  login_server: https://hs.shulex.com
 
 # 本地工作目录根路径
 workspace: ~/workspace
 
 # 业务线定义
 businesses:
-  - name: 订单系统
-    key: order
+  - name: PLG 订阅支付系统
+    key: plg-subscription
     repos:
       - group: backend
-        name: order-service
-        ssh: git@gitlab.yourcompany.com:backend/order-service.git
-      - group: backend
-        name: payment-service
-        ssh: git@gitlab.yourcompany.com:backend/payment-service.git
+        name: shulex-cloud
+        ssh: git@git-ssh.shulex-tech.com:cloud/shulex-cloud.git
       - group: frontend
-        name: order-web
-        ssh: git@gitlab.yourcompany.com:frontend/order-web.git
+        name: plg-agents
+        ssh: git@git-ssh.shulex-tech.com:shulex-fe/plg-agents.git
 
-  - name: 用户中心
+  - name: PLG Onboarding链路
     key: user
     repos:
       - group: backend
-        name: user-service
-        ssh: git@gitlab.yourcompany.com:backend/user-service.git
+        name: shulex-cloud
+        ssh: git@git-ssh.shulex-tech.com:cloud/shulex-cloud.git
       - group: frontend
-        name: user-web
-        ssh: git@gitlab.yourcompany.com:frontend/user-web.git
+        name: plg-agents
+        ssh: git@git-ssh.shulex-tech.com:shulex-fe/plg-agents.git
