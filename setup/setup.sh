@@ -223,7 +223,8 @@ install_dev_tools() {
         local mvn_ver
         mvn_ver="$(mvn --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
         local mvn_major="${mvn_ver%%.*}"
-        local mvn_minor="${${mvn_ver#*.}%%.*}"
+        local mvn_rest="${mvn_ver#*.}"
+        local mvn_minor="${mvn_rest%%.*}"
         if [[ "${mvn_major}" -gt 3 ]] || { [[ "${mvn_major}" -eq 3 ]] && [[ "${mvn_minor}" -ge 9 ]]; }; then
             log_skip "Maven 已安装 (${mvn_ver} >= 3.9)，跳过"
         else
