@@ -3,7 +3,7 @@ set -uo pipefail
 
 # =============================================================================
 # 一键开发环境配置脚本
-# 使用方式: bash setup/setup.sh
+# 使用方式: zsh setup/setup.sh 或 ./setup/setup.sh
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
@@ -24,21 +24,21 @@ RESULTS_FAILED=()
 
 log_success() {
     RESULTS_SUCCESS+=("$1")
-    echo -e "${GREEN}[✓]${NC} $1"
+    printf "${GREEN}[✓]${NC} %s\n" "$1"
 }
 
 log_skip() {
     RESULTS_SKIPPED+=("$1")
-    echo -e "${YELLOW}[✓]${NC} $1"
+    printf "${YELLOW}[✓]${NC} %s\n" "$1"
 }
 
 log_fail() {
     RESULTS_FAILED+=("$1")
-    echo -e "${RED}[✗]${NC} $1"
+    printf "${RED}[✗]${NC} %s\n" "$1"
 }
 
 log_info() {
-    echo -e "${BLUE}[i]${NC} $1"
+    printf "${BLUE}[i]${NC} %s\n" "$1"
 }
 
 print_summary() {
@@ -48,29 +48,29 @@ print_summary() {
     echo "=========================================="
 
     if [[ ${#RESULTS_SUCCESS[@]} -gt 0 ]]; then
-        echo -e "\n${GREEN}成功:${NC}"
+        printf "\n${GREEN}成功:${NC}\n"
         for item in "${RESULTS_SUCCESS[@]}"; do
-            echo -e "  ${GREEN}[✓]${NC} ${item}"
+            printf "  ${GREEN}[✓]${NC} %s\n" "${item}"
         done
     fi
 
     if [[ ${#RESULTS_SKIPPED[@]} -gt 0 ]]; then
-        echo -e "\n${YELLOW}跳过:${NC}"
+        printf "\n${YELLOW}跳过:${NC}\n"
         for item in "${RESULTS_SKIPPED[@]}"; do
-            echo -e "  ${YELLOW}[✓]${NC} ${item}"
+            printf "  ${YELLOW}[✓]${NC} %s\n" "${item}"
         done
     fi
 
     if [[ ${#RESULTS_FAILED[@]} -gt 0 ]]; then
-        echo -e "\n${RED}失败:${NC}"
+        printf "\n${RED}失败:${NC}\n"
         for item in "${RESULTS_FAILED[@]}"; do
-            echo -e "  ${RED}[✗]${NC} ${item}"
+            printf "  ${RED}[✗]${NC} %s\n" "${item}"
         done
         echo ""
-        echo -e "${RED}请检查以上失败项并手动修复。${NC}"
+        printf "${RED}请检查以上失败项并手动修复。${NC}\n"
     else
         echo ""
-        echo -e "${GREEN}全部完成！${NC}"
+        printf "${GREEN}全部完成！${NC}\n"
     fi
 }
 
@@ -78,13 +78,13 @@ print_summary() {
 preflight_check() {
     # 检测 macOS
     if [[ "$(uname)" != "Darwin" ]]; then
-        echo -e "${RED}错误：此脚本仅支持 macOS${NC}"
+        printf "${RED}错误：此脚本仅支持 macOS${NC}\n"
         exit 1
     fi
 
     # 检测配置文件
     if [[ ! -f "${CONFIG_FILE}" ]]; then
-        echo -e "${RED}错误：找不到配置文件 ${CONFIG_FILE}${NC}"
+        printf "${RED}错误：找不到配置文件 ${CONFIG_FILE}${NC}\n"
         exit 1
     fi
 
@@ -108,7 +108,7 @@ install_homebrew() {
         log_success "Homebrew 安装完成"
     else
         log_fail "Homebrew 安装失败"
-        echo -e "${RED}Homebrew 是后续安装的基础，脚本终止。${NC}"
+        printf "${RED}Homebrew 是后续安装的基础，脚本终止。${NC}\n"
         print_summary
         exit 1
     fi
@@ -148,39 +148,36 @@ install_base_tools() {
 
 # -- 配置 Git 用户信息 --
 configure_git() {
-    log_info "配置 Git 用户信息..."
-
-    local current_name
-    local current_email
+    local current_name current_email
     current_name="$(git config --global user.name 2>/dev/null || echo "")"
     current_email="$(git config --global user.email 2>/dev/null || echo "")"
 
-    if [[ -n "${current_name}" ]]; then
-        echo -e "  当前 Git 用户名: ${GREEN}${current_name}${NC}"
-        read -r "new_name?  输入新用户名（按回车保留当前值）: "
-    else
+    if [[ -n "${current_name}" && -n "${current_email}" ]]; then
+        log_skip "Git 用户已配置 (${current_name} <${current_email}>)，跳过"
+        return 0
+    fi
+
+    log_info "配置 Git 用户信息..."
+
+    if [[ -z "${current_name}" ]]; then
+        local new_name=""
         read -r "new_name?  输入 Git 用户名: "
+        if [[ -n "${new_name}" ]]; then
+            git config --global user.name "${new_name}"
+        fi
     fi
 
-    if [[ -n "${new_name}" ]]; then
-        git config --global user.name "${new_name}"
-    fi
-
-    if [[ -n "${current_email}" ]]; then
-        echo -e "  当前 Git 邮箱: ${GREEN}${current_email}${NC}"
-        read -r "new_email?  输入新邮箱（按回车保留当前值）: "
-    else
+    if [[ -z "${current_email}" ]]; then
+        local new_email=""
         read -r "new_email?  输入 Git 邮箱: "
+        if [[ -n "${new_email}" ]]; then
+            git config --global user.email "${new_email}"
+        fi
     fi
 
-    if [[ -n "${new_email}" ]]; then
-        git config --global user.email "${new_email}"
-    fi
-
-    local final_name
-    local final_email
-    final_name="$(git config --global user.name)"
-    final_email="$(git config --global user.email)"
+    local final_name final_email
+    final_name="$(git config --global user.name 2>/dev/null || echo "")"
+    final_email="$(git config --global user.email 2>/dev/null || echo "")"
     log_success "Git 用户配置完成 (${final_name} <${final_email}>)"
 }
 
@@ -326,7 +323,7 @@ configure_ssh_key() {
 
     if [[ -f "${ssh_key}" ]]; then
         log_skip "SSH Key 已存在，跳过"
-        echo -e "  公钥: $(cat "${ssh_key}.pub")"
+        printf "  公钥: %s\n" "$(cat "${ssh_key}.pub")"
         return 0
     fi
 
@@ -345,7 +342,7 @@ configure_ssh_key() {
 
     log_success "SSH Key 已生成"
     echo ""
-    echo -e "${BLUE}请将以下公钥添加到 GitLab:${NC}"
+    printf "${BLUE}请将以下公钥添加到 GitLab:${NC}\n"
     echo ""
     cat "${ssh_key}.pub"
     echo ""
@@ -353,7 +350,7 @@ configure_ssh_key() {
     local gitlab_host
     gitlab_host="$(yq eval '.gitlab.host' "${CONFIG_FILE}")"
     if [[ -n "${gitlab_host}" && "${gitlab_host}" != "null" ]]; then
-        echo -e "GitLab SSH Key 设置页面: ${BLUE}https://${gitlab_host}/-/user_settings/ssh_keys${NC}"
+        printf "GitLab SSH Key 设置页面: ${BLUE}https://${gitlab_host}/-/user_settings/ssh_keys${NC}\n"
     fi
 
     echo ""
