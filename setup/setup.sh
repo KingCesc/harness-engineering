@@ -184,6 +184,258 @@ configure_git() {
     log_success "Git 用户配置完成 (${final_name} <${final_email}>)"
 }
 
+# -- 通用 brew cask install 函数 --
+brew_install_cask() {
+    local cask="$1"
+    local display_name="$2"
+
+    if brew list --cask "${cask}" &>/dev/null; then
+        log_skip "${display_name} 已安装，跳过"
+        return 0
+    fi
+
+    log_info "正在安装 ${display_name}..."
+    if brew install --cask "${cask}"; then
+        log_success "${display_name} 安装完成"
+    else
+        log_fail "${display_name} 安装失败"
+    fi
+}
+
+# -- 安装开发工具 --
+install_dev_tools() {
+    # OpenJDK 8
+    if /usr/libexec/java_home -v 1.8 &>/dev/null; then
+        log_skip "OpenJDK 8 已安装，跳过"
+    else
+        log_info "正在安装 OpenJDK 8..."
+        if brew install openjdk@8; then
+            # Create symlink so macOS java_home can find it
+            sudo ln -sfn "$(brew --prefix openjdk@8)/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+            log_success "OpenJDK 8 安装完成"
+        else
+            log_fail "OpenJDK 8 安装失败"
+        fi
+    fi
+
+    # Maven
+    brew_install "maven" "Maven" "mvn"
+
+    # Node.js 20
+    if command -v node &>/dev/null && [[ "$(node --version)" == v20.* ]]; then
+        log_skip "Node.js 20 已安装，跳过"
+    else
+        brew_install "node@20" "Node.js 20" ""
+    fi
+
+    # Tailscale
+    brew_install_cask "tailscale" "Tailscale"
+}
+
+# -- 配置 Tailscale --
+configure_tailscale() {
+    if ! command -v tailscale &>/dev/null; then
+        log_info "Tailscale 未安装，跳过登录配置"
+        return 0
+    fi
+
+    local login_server
+    login_server="$(yq eval '.tailscale.login_server' "${CONFIG_FILE}")"
+
+    if [[ -z "${login_server}" || "${login_server}" == "null" ]]; then
+        log_info "biz-repos.yaml 中未配置 tailscale.login_server，跳过"
+        return 0
+    fi
+
+    # Check if already connected
+    if tailscale status &>/dev/null; then
+        log_skip "Tailscale 已连接，跳过"
+        return 0
+    fi
+
+    log_info "正在登录 Tailscale（将打开浏览器进行认证）..."
+    if tailscale login --login-server="${login_server}"; then
+        log_success "Tailscale 登录完成"
+    else
+        log_fail "Tailscale 登录失败，请稍后手动执行: tailscale login --login-server=${login_server}"
+    fi
+}
+
+# -- 配置 Maven settings.xml --
+configure_maven() {
+    local m2_dir="${HOME}/.m2"
+    local target="${m2_dir}/settings.xml"
+
+    mkdir -p "${m2_dir}"
+
+    if [[ -f "${target}" ]]; then
+        # Check if it's already the same file
+        if diff -q "${MAVEN_TEMPLATE}" "${target}" &>/dev/null; then
+            log_skip "Maven settings.xml 已是最新，跳过"
+            return 0
+        fi
+        # Backup existing
+        cp "${target}" "${target}.bak"
+        log_info "已备份现有 settings.xml → settings.xml.bak"
+    fi
+
+    cp "${MAVEN_TEMPLATE}" "${target}"
+    log_success "Maven settings.xml 已配置"
+}
+
+# -- 配置环境变量 --
+configure_env_vars() {
+    local zshrc="${HOME}/.zshrc"
+    local marker="# == harness-engineering dev env =="
+
+    # Create .zshrc if it doesn't exist
+    touch "${zshrc}"
+
+    # Check if already configured
+    if grep -q "${marker}" "${zshrc}"; then
+        log_skip "环境变量已配置，跳过"
+        return 0
+    fi
+
+    cat >> "${zshrc}" << 'EOF'
+
+# == harness-engineering dev env ==
+# OpenJDK 8
+export JAVA_HOME=$(/usr/libexec/java_home -v 1.8 2>/dev/null)
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# Node.js 20
+export PATH="/opt/homebrew/opt/node@20/bin:$PATH"
+# == end harness-engineering dev env ==
+EOF
+
+    log_success "环境变量已写入 ~/.zshrc"
+}
+
+# -- 配置 SSH Key --
+configure_ssh_key() {
+    local ssh_key="${HOME}/.ssh/id_ed25519"
+
+    if [[ -f "${ssh_key}" ]]; then
+        log_skip "SSH Key 已存在，跳过"
+        echo -e "  公钥: $(cat "${ssh_key}.pub")"
+        return 0
+    fi
+
+    log_info "正在生成 SSH Key..."
+    mkdir -p "${HOME}/.ssh"
+    chmod 700 "${HOME}/.ssh"
+
+    local email
+    email="$(git config --global user.email 2>/dev/null || echo "")"
+
+    if [[ -n "${email}" ]]; then
+        ssh-keygen -t ed25519 -C "${email}" -f "${ssh_key}" -N ""
+    else
+        ssh-keygen -t ed25519 -f "${ssh_key}" -N ""
+    fi
+
+    log_success "SSH Key 已生成"
+    echo ""
+    echo -e "${BLUE}请将以下公钥添加到 GitLab:${NC}"
+    echo ""
+    cat "${ssh_key}.pub"
+    echo ""
+
+    local gitlab_host
+    gitlab_host="$(yq eval '.gitlab.host' "${CONFIG_FILE}")"
+    if [[ -n "${gitlab_host}" && "${gitlab_host}" != "null" ]]; then
+        echo -e "GitLab SSH Key 设置页面: ${BLUE}https://${gitlab_host}/-/user_settings/ssh_keys${NC}"
+    fi
+
+    echo ""
+    read -rp "添加完成后按回车继续..."
+}
+
+# -- Clone 业务线 Repo --
+clone_repos() {
+    local workspace
+    workspace="$(yq eval '.workspace' "${CONFIG_FILE}")"
+    # Expand ~ to $HOME
+    workspace="${workspace/#\~/$HOME}"
+
+    local biz_count
+    biz_count="$(yq eval '.businesses | length' "${CONFIG_FILE}")"
+
+    if [[ "${biz_count}" -eq 0 ]]; then
+        log_info "biz-repos.yaml 中没有定义业务线"
+        return 0
+    fi
+
+    echo ""
+    echo "请选择要克隆的业务线："
+
+    local biz_names=()
+    for ((i = 0; i < biz_count; i++)); do
+        local name
+        name="$(yq eval ".businesses[${i}].name" "${CONFIG_FILE}")"
+        biz_names+=("${name}")
+        echo "  $((i + 1))) ${name}"
+    done
+    echo "  $((biz_count + 1))) 全部"
+    echo ""
+
+    read -rp "请输入序号（多选用空格分隔）: " -a selections
+
+    # Determine which business lines to clone
+    local selected_indices=()
+    for sel in "${selections[@]}"; do
+        if [[ "${sel}" -eq $((biz_count + 1)) ]]; then
+            # "全部" selected
+            selected_indices=()
+            for ((i = 0; i < biz_count; i++)); do
+                selected_indices+=("${i}")
+            done
+            break
+        elif [[ "${sel}" -ge 1 && "${sel}" -le "${biz_count}" ]]; then
+            selected_indices+=("$((sel - 1))")
+        else
+            log_fail "无效的序号: ${sel}"
+        fi
+    done
+
+    if [[ ${#selected_indices[@]} -eq 0 ]]; then
+        log_info "未选择任何业务线，跳过克隆"
+        return 0
+    fi
+
+    # Clone repos for each selected business line
+    for idx in "${selected_indices[@]}"; do
+        local biz_name biz_key repo_count
+        biz_name="$(yq eval ".businesses[${idx}].name" "${CONFIG_FILE}")"
+        biz_key="$(yq eval ".businesses[${idx}].key" "${CONFIG_FILE}")"
+        repo_count="$(yq eval ".businesses[${idx}].repos | length" "${CONFIG_FILE}")"
+
+        local biz_dir="${workspace}/${biz_key}"
+        mkdir -p "${biz_dir}"
+
+        log_info "克隆业务线: ${biz_name} → ${biz_dir}"
+
+        for ((r = 0; r < repo_count; r++)); do
+            local repo_name repo_ssh
+            repo_name="$(yq eval ".businesses[${idx}].repos[${r}].name" "${CONFIG_FILE}")"
+            repo_ssh="$(yq eval ".businesses[${idx}].repos[${r}].ssh" "${CONFIG_FILE}")"
+
+            local repo_dir="${biz_dir}/${repo_name}"
+            if [[ -d "${repo_dir}" ]]; then
+                log_skip "  ${repo_name} 已存在，跳过"
+                continue
+            fi
+
+            if git clone "${repo_ssh}" "${repo_dir}"; then
+                log_success "  ${repo_name} 克隆完成"
+            else
+                log_fail "  ${repo_name} 克隆失败"
+            fi
+        done
+    done
+}
+
 # =============================================================================
 # 主流程
 # =============================================================================
@@ -192,6 +444,12 @@ main() {
     install_homebrew
     install_base_tools
     configure_git
+    install_dev_tools
+    configure_tailscale
+    configure_maven
+    configure_env_vars
+    configure_ssh_key
+    clone_repos
     print_summary
 }
 
