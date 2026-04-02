@@ -418,7 +418,7 @@ clone_repos() {
         fi
 
         log_info "正在验证 SSH 连接到 ${ssh_host}..."
-        if ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "git@${ssh_host}" 2>&1 | grep -qi "welcome"; then
+        if ssh -T -n -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "git@${ssh_host}" 2>&1 | grep -qi "welcome"; then
             log_success "SSH 验证通过"
             break
         else
@@ -449,8 +449,8 @@ clone_repos() {
     echo "请选择要克隆的业务线："
 
     local biz_names=()
+    local name
     for ((i = 0; i < biz_count; i++)); do
-        local name
         name="$(yq eval ".businesses[${i}].name" "${CONFIG_FILE}")"
         biz_names+=("${name}")
         echo "  $((i + 1))) ${name}"
@@ -496,18 +496,18 @@ clone_repos() {
 
         log_info "克隆业务线: ${biz_name} → ${biz_dir}"
 
+        local repo_name repo_ssh repo_dir
         for ((r = 0; r < repo_count; r++)); do
-            local repo_name repo_ssh
             repo_name="$(yq eval ".businesses[${idx}].repos[${r}].name" "${CONFIG_FILE}")"
             repo_ssh="$(yq eval ".businesses[${idx}].repos[${r}].ssh" "${CONFIG_FILE}")"
 
-            local repo_dir="${biz_dir}/${repo_name}"
+            repo_dir="${biz_dir}/${repo_name}"
             if [[ -d "${repo_dir}" ]]; then
                 log_skip "  ${repo_name} 已存在，跳过"
                 continue
             fi
 
-            if git clone "${repo_ssh}" "${repo_dir}"; then
+            if git clone "${repo_ssh}" "${repo_dir}" < /dev/null; then
                 log_success "  ${repo_name} 克隆完成"
             else
                 log_fail "  ${repo_name} 克隆失败"
