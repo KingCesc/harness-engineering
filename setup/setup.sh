@@ -186,7 +186,8 @@ configure_git() {
 
     while [[ -z "${current_name}" ]]; do
         local new_name=""
-        read -r "new_name?  输入 Git 用户名（必填）: "
+        printf "  输入 Git 用户名（必填）: "
+        read -r new_name
         if [[ -n "${new_name}" ]]; then
             git config --global user.name "${new_name}"
             current_name="${new_name}"
@@ -197,7 +198,8 @@ configure_git() {
 
     while [[ -z "${current_email}" ]]; do
         local new_email=""
-        read -r "new_email?  输入 Git 邮箱（必填）: "
+        printf "  输入 Git 邮箱（必填）: "
+        read -r new_email
         if [[ -n "${new_email}" ]]; then
             git config --global user.email "${new_email}"
             current_email="${new_email}"
@@ -429,7 +431,8 @@ clone_repos() {
     printf "${YELLOW}请确认你已将 SSH 公钥添加到 GitLab，否则 clone 会失败。${NC}\n"
     printf "输入 ${GREEN}y${NC} 继续克隆代码，输入 ${RED}n${NC} 跳过\n"
     local confirm=""
-    read -r "confirm?是否继续克隆代码？(y/n): "
+    printf "是否继续克隆代码？(y/n): "
+    read -r confirm
     if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
         log_info "跳过代码克隆，请添加 SSH Key 后重新运行脚本"
         return 0
@@ -462,7 +465,8 @@ clone_repos() {
     echo ""
 
     local input=""
-    read -r "input?请输入序号（多选用空格分隔）: " || true
+    printf "请输入序号（多选用空格分隔）: "
+    read -r input || true
     local selections=(${=input})
 
     # Determine which business lines to clone
