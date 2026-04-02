@@ -4,17 +4,17 @@
     <server>
       <id>shulex-repository-public</id>
       <username>dev</username>
-      <password>shulex_dev_wertsdfzc579</password>
+      <password></password>
     </server>
     <server>
       <id>shulex-repository-releases</id>
       <username>dev</username>
-      <password>shulex_dev_wertsdfzc579</password>
+      <password></password>
     </server>
     <server>
       <id>shulex-repository-snapshot</id>
       <username>dev</username>
-      <password>shulex_dev_wertsdfzc579</password>
+      <password></password>
     </server>
   </servers>
   <profiles>
