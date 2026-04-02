@@ -201,20 +201,15 @@ brew_install_cask() {
 
 # -- 安装开发工具 --
 install_dev_tools() {
-    # OpenJDK 8
+    # JDK 8 (Azul Zulu, 支持 Apple Silicon)
     if /usr/libexec/java_home -v 1.8 &>/dev/null; then
-        log_skip "OpenJDK 8 已安装，跳过"
+        log_skip "JDK 8 已安装，跳过"
     else
-        log_info "正在安装 OpenJDK 8..."
-        if brew install openjdk@8; then
-            # Create symlink so macOS java_home can find it
-            if sudo ln -sfn "$(brew --prefix openjdk@8)/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk-8.jdk; then
-                log_success "OpenJDK 8 安装完成"
-            else
-                log_success "OpenJDK 8 安装完成（symlink 创建失败，可能需要手动执行 sudo 命令）"
-            fi
+        log_info "正在安装 Azul Zulu JDK 8..."
+        if brew install --cask zulu@8; then
+            log_success "JDK 8 安装完成 (Azul Zulu)"
         else
-            log_fail "OpenJDK 8 安装失败"
+            log_fail "JDK 8 安装失败"
         fi
     fi
 
