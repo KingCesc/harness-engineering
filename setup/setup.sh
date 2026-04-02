@@ -140,7 +140,7 @@ brew_install() {
     fi
 }
 
-# -- 安装 yq（直接下载二进制，避免 brew 编译卡住）--
+# -- 安装 yq --
 install_yq() {
     if command -v yq &>/dev/null; then
         log_skip "yq 已安装，跳过"
@@ -155,13 +155,23 @@ install_yq() {
         arch="amd64"
     fi
 
+    # 优先直接下载二进制（快），失败则 brew 兜底
     local yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_${arch}"
-    local yq_bin="/usr/local/bin/yq"
+    local yq_dir="${HOME}/.local/bin"
+    mkdir -p "${yq_dir}"
+    local yq_bin="${yq_dir}/yq"
 
-    if curl -fsSL "${yq_url}" -o "${yq_bin}" && chmod +x "${yq_bin}"; then
+    if curl -fsSL --connect-timeout 10 --max-time 30 "${yq_url}" -o "${yq_bin}" 2>/dev/null && chmod +x "${yq_bin}"; then
+        # 确保 ~/.local/bin 在 PATH 中
+        export PATH="${yq_dir}:${PATH}"
         log_success "yq 安装完成"
     else
-        log_fail "yq 安装失败"
+        log_info "直接下载失败，尝试 brew 安装..."
+        if brew install yq; then
+            log_success "yq 安装完成 (brew)"
+        else
+            log_fail "yq 安装失败"
+        fi
     fi
 }
 
