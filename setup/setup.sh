@@ -218,12 +218,30 @@ install_dev_tools() {
         fi
     fi
 
-    # Maven
-    brew_install "maven" "Maven" "mvn"
+    # Maven (>= 3.9)
+    if command -v mvn &>/dev/null; then
+        local mvn_ver
+        mvn_ver="$(mvn --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+        local mvn_major="${mvn_ver%%.*}"
+        local mvn_minor="${${mvn_ver#*.}%%.*}"
+        if [[ "${mvn_major}" -gt 3 ]] || { [[ "${mvn_major}" -eq 3 ]] && [[ "${mvn_minor}" -ge 9 ]]; }; then
+            log_skip "Maven 已安装 (${mvn_ver} >= 3.9)，跳过"
+        else
+            brew_install "maven" "Maven" ""
+        fi
+    else
+        brew_install "maven" "Maven" ""
+    fi
 
-    # Node.js 20
-    if command -v node &>/dev/null && [[ "$(node --version)" == v20.* ]]; then
-        log_skip "Node.js 20 已安装，跳过"
+    # Node.js (>= 20)
+    if command -v node &>/dev/null; then
+        local node_ver
+        node_ver="$(node --version | grep -oE '[0-9]+'| head -1)"
+        if [[ "${node_ver}" -ge 20 ]]; then
+            log_skip "Node.js 已安装 ($(node --version) >= 20)，跳过"
+        else
+            brew_install "node@20" "Node.js 20" ""
+        fi
     else
         brew_install "node@20" "Node.js 20" ""
     fi
